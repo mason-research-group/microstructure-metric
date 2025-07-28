@@ -3,6 +3,9 @@ sys.path.append('../state-space/')
 
 import numpy as np
 import matplotlib.pyplot as plt
+import itertools
+
+rng = np.random.default_rng()
 
 #import master_wass_metric_binary as mwmb
 
@@ -22,10 +25,15 @@ def quatmult(q1, q2):
         c+=1
     return prod
 
+
 def misorientation_angle(q1, q2):
     ### calculate orientation distance between two quaternions, assuming that 
     ### the ordering of the quaternion parameters is (real, imaginary)
-    return 2*np.arccos(abs(q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3]))
+    wm = abs(q1[0]*q2[0] + q1[1]*q2[1] + q1[2]*q2[2] + q1[3]*q2[3])
+    if np.isclose(wm,1):
+        return 0
+    else:
+        return 2*np.arccos(wm)
     
 
 def misorientation(q1, q2):
@@ -91,12 +99,20 @@ def misorientation_dict(A,B):
             key = str(i)+str(j)
             if key not in misorientations:
                 w = misorientation_angle(quatA, quatB)
-                if w not in misorientations.values():
-                    misorientations.update({str(i)+str(j) : w})
+                misorientations.update({str(i)+str(j) : w})
             j+=1
         i+=1
     return misorientations
+
+def disorientations(q1,q2):
+    ### find the minimum angle difference between degenerate quaternions
+    # {a0, a1, a2, a3}
+    table = list(itertools.product([False, True], repeat=4))
+    r = quatmult(q1,q2)
+    quatset = np.array(1152,4)
+    return
     
+
 def gen_textured_window(l,m):
     ### assign texture randomly for an lxl window using a number of quaternions
     ### equal to m
@@ -111,7 +127,40 @@ def gen_textured_window(l,m):
 
     return A
 
-def texture_graph(A,B):
+def full_bipartite(Graph):
+    '''
+    Constructs bipartite graph for a pair of windows.
+    In other words, we are phrasing the matching of windows as an assignment
+    problem and creating the graph which lets us compute the solution.
+
+    Parameters
+    ----------
+    Graph : nparray
+        output of "intrawindow_block". the unreduced bipartite graph
+        
+    Returns
+    -------
+    Graph : nparray
+        the reduced bipartite graph, fully dense transport matrix
+        which contains nodes for each window (A and B) as well as their 
+        associated "boundaries" or "dummy points" or "reservoirs"
+    '''
+    
+    
+    # add rest of dummy points #
+    s = np.shape(Graph) 
+    
+    dummyA = np.zeros((s[0],s[0]))
+    dummyA += Graph[:,s[1]-1]
+    Graph = np.append(Graph, dummyA.T, axis=1)
+
+    dummyB = np.zeros((s[1],s[0]+s[1]))    
+    dummyB += Graph[s[0]-1, :]
+    Graph = np.append(Graph, dummyB, axis=0)[:-2,:-2]
+    
+    return Graph
+
+def texture_graph(A,B,plotting):
     ### the graph for orientation difference for two windows, A and B ###
     n = np.shape(A)[0]
     G = np.zeros((n**2, n**2))
@@ -123,8 +172,8 @@ def texture_graph(A,B):
     nB = np.shape(uniqueB)[0]
     
     ### creates a feature ID window that can be used to reference the look up table
-    fidA = create_FID(A, uniqueA, n, plotting = True)
-    fidB = create_FID(B, uniqueB, n, plotting = True)
+    fidA = create_FID(A, uniqueA, n, plotting = plotting)
+    fidB = create_FID(B, uniqueB, n, plotting = plotting)
     
     ### this computes the lookup table
     misorientations = misorientation_dict(A, B)
