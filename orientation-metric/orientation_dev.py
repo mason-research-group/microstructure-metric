@@ -83,13 +83,17 @@ def create_FID(G, unique_q, n, plotting = False):
 
 
 def misorientation_dict(A,B):
+    ### creates a dictionary of misorientations for two windows, A and B.   ###
+    ### this way, each unique combination of orientations needs only one    ###
+    ### misorientation computation, reducing the misorientation calculation ###
+    ### from n**2 to (uniqueA * uniqueB)
     n = np.shape(A)[0]
 
     ### we only want to compute disorientation for unique pairs ###
     uniqueA = np.unique(A.reshape(-1,4), axis=0)
     uniqueB = np.unique(B.reshape(-1,4), axis=0)
-    fidA = create_FID(A, uniqueA, n)
-    fidB = create_FID(B, uniqueB, n)
+    #fidA = create_FID(A, uniqueA, n)
+    #fidB = create_FID(B, uniqueB, n)
     misorientations = {}
     i = 0
     
@@ -105,7 +109,10 @@ def misorientation_dict(A,B):
     return misorientations
 
 def disorientations(q1,q2):
-    ### find the minimum angle difference between degenerate quaternions
+    ### find the minimum angle difference between degenerate quaternions  ###
+    ### this has not been fully developed but will likely be necessary in ### 
+    ### the future so that the metric is robust and insensitive to        ###
+    ### crystallographic symmetries                                       ###
     # {a0, a1, a2, a3}
     table = list(itertools.product([False, True], repeat=4))
     r = quatmult(q1,q2)
@@ -117,7 +124,7 @@ def gen_textured_window(l,m):
     ### assign texture randomly for an lxl window using a number of quaternions
     ### equal to m
     A = np.ones((l,l,4))
-    qs = rng.random(size=(m,4))
+    qs = rng.normal(size = 4)
     for i in range(m):
         qs[i] = qs[i] / np.linalg.norm(qs[i]) 
         
